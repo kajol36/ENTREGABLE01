@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gestión Automatizada de Trámites con Machine Learning</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* Reset and base */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #e0e6f0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+  h1, h2, h3 {
+    margin: 0 0 16px 0;
+    font-weight: 700;
+  }
+  h1 {
+    font-size: 2.8rem;
+    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  h2 {
+    font-size: 1.8rem;
+  }
+
+  /* Container */
+  .container {
+    max-width: 900px;
+    width: 100%;
+    background: rgba(255 255 255 / 0.05);
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgb(11 14 26 / 0.7);
+    padding: 32px 32px 48px;
+  }
+
+  /* Form */
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 32px;
+    margin-bottom: 32px;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  input[type=text], input[type=email], select, textarea {
+    margin-top: 8px;
+    padding: 12px 14px;
+    background: rgba(255 255 255 / 0.1);
+    border: none;
+    border-radius: 12px;
+    color: #e0e6f0;
+    font-size: 1rem;
+    resize: vertical;
+    transition: background-color 0.3s ease;
+    font-family: inherit;
+  }
+  input[type=text]:focus, input[type=email]:focus, select:focus, textarea:focus {
+    background: rgba(255 255 255 / 0.15);
+    outline: none;
+    box-shadow: 0 0 10px #8b5cf6cc;
+  }
+  textarea {
+    min-height: 80px;
+    grid-column: span 2;
+  }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg fill='white' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5H7z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 24px;
+  }
+  
+  button[type=submit] {
+    grid-column: span 2;
+    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    border: none;
+    padding: 16px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: white;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+    user-select: none;
+  }
+  button[type=submit]:hover {
+    box-shadow: 0 8px 20px #8b5cf6dd;
+    transform: translateY(-3px);
+  }
+  button[type=submit]:active {
+    transform: translateY(0);
+  }
+
+  /* Trámites list */
+  .procedures-list {
+    margin-top: 24px;
+  }
+  .procedures-list h2 {
+    margin-bottom: 24px;
+  }
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 12px;
+  }
+  thead th {
+    text-align: left;
+    font-weight: 700;
+    color: #a5b4fc;
+    padding-bottom: 12px;
+  }
+  tbody tr {
+    background: rgba(255 255 255 / 0.1);
+    border-radius: 12px;
+    transition: background-color 0.3s ease;
+  }
+  tbody tr:hover {
+    background: #6d28d9cc;
+  }
+  tbody td {
+    padding: 16px 12px;
+    vertical-align: middle;
+    color: #d1d5db;
+    font-size: 0.95rem;
+  }
+  tbody td.status {
+    font-weight: 600;
+  }
+
+  /* Priority styles */
+  .priority-low {
+    color: #84cc16;
+    font-weight: 700;
+  }
+  .priority-medium {
+    color: #facc15;
+    font-weight: 700;
+  }
+  .priority-high {
+    color: #ef4444;
+    font-weight: 700;
+  }
+
+  /* Notification */
+  .notification {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    background: #10b981;
+    color: white;
+    padding: 14px 24px;
+    border-radius: 16px;
+    box-shadow: 0 8px 25px #10b981aa;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(50px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    max-width: 320px;
+    z-index: 1000;
+  }
+  .notification.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  /* Responsive */
+  @media (max-width: 660px) {
+    form {
+      grid-template-columns: 1fr;
+    }
+    textarea {
+      grid-column: span 1;
+    }
+    button[type=submit] {
+      grid-column: span 1;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container" role="main" aria-label="Gestión automatizada de trámites">
+  <h1>Gestión Automatizada de Trámites</h1>
+  <p>Formulario para registrar trámites, priorizarlos automáticamente y recibir alertas sobre el estado.</p>
+  <form id="procedure-form" aria-describedby="form-desc">
+    <label for="citizen-name">Nombre del ciudadano
+      <input type="text" id="citizen-name" name="citizen-name" required placeholder="Ejemplo: Juan Pérez" autocomplete="name" />
+    </label>
+    <label for="citizen-email">Correo electrónico
+      <input type="email" id="citizen-email" name="citizen-email" required placeholder="ejemplo@mail.com" autocomplete="email" />
+    </label>
+    <label for="procedure-type">Tipo de trámite
+      <select id="procedure-type" name="procedure-type" required aria-required="true" aria-describedby="type-desc">
+        <option value="" disabled selected>Seleccione...</option>
+        <option value="licencia">Licencia</option>
+        <option value="permiso">Permiso</option>
+        <option value="servicio">Servicios públicos</option>
+        <option value="consulta">Consulta general</option>
+      </select>
+    </label>
+    <label for="details">Detalles del trámite
+      <textarea id="details" name="details" placeholder="Describa brevemente el trámite o solicitud..." required></textarea>
+    </label>
+    <button type="submit" aria-label="Enviar trámite">Registrar trámite</button>
+  </form>
+
+  <section class="procedures-list" aria-live="polite" aria-relevant="additions">
+    <h2>Trámites registrados</h2>
+    <table aria-describedby="procedures-desc" role="table">
+      <thead>
+        <tr>
+          <th scope="col">Ciudadano</th>
+          <th scope="col">Tipo</th>
+          <th scope="col">Detalles</th>
+          <th scope="col">Prioridad</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Última actualización</th>
+        </tr>
+      </thead>
+      <tbody id="procedures-tbody">
+        <!-- Trámites creados dinámicamente -->
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<div id="notification" class="notification" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<script>
+  (() => {
+    // Estado de la aplicación
+    const procedures = [];
+    const priorityLevels = {
+      low: {label: 'Baja', class: 'priority-low'},
+      medium: {label: 'Media', class: 'priority-medium'},
+      high: {label: 'Alta', class: 'priority-high'}
+    };
+
+    // Elementos UI
+    const form = document.getElementById('procedure-form');
+    const tbody = document.getElementById('procedures-tbody');
+    const notification = document.getElementById('notification');
+
+    // Función simulada de ML que prioriza trámites según tipo y características simples
+    // En producción, aquí se admitiría un modelo real basado en datos históricos
+    function mlPrioritize(procedure) {
+      // Prioridad basada en tipo de trámite y longitud del detalle
+      // Licencias y servicios públicos usualmente más críticos
+      let score = 0;
+      if (procedure.type === 'licencia') score += 3;
+      if (procedure.type === 'servicio') score += 3;
+      if (procedure.type === 'permiso') score += 2;
+      if (procedure.type === 'consulta') score += 1;
+
+      // Si detalle es largo (más de 100 caracteres) incrementa prioridad (más información, importancia)
+      if (procedure.details.length > 100) score += 1;
+
+      // Errores simples simulados - si el nombre o correo no cumplen formato básico (redundante por HTML5)
+      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(procedure.email);
+      const nameValid = procedure.name.trim().length > 2;
+
+      if (!emailValid || !nameValid) {
+        procedure.error = 'Datos incompletos o inválidos';
+        procedure.status = 'Error';
+        return 'high';
+      }
+
+      // Mapear score a prioridad
+      if (score >= 5) return 'high';
+      else if (score >= 3) return 'medium';
+      else return 'low';
+    }
+
+    // Simular estado de trámite con cambio temporal
+    function simulateStatusUpdate(procedure) {
+      // Cambios de estado automáticos con tiempos
+      const updateCycle = ['Recibido', 'En Proceso', 'En Revisión', 'Finalizado'];
+      let currentIndex = 0;
+
+      procedure.status = updateCycle[currentIndex];
+      procedure.lastUpdated = new Date().toLocaleString();
+
+      const intervalId = setInterval(() => {
+        currentIndex++;
+
+        if (currentIndex >= updateCycle.length) {
+          clearInterval(intervalId);
+          procedure.status = 'Finalizado';
+          procedure.lastUpdated = new Date().toLocaleString();
+          renderProcedures();
+          notifyUser(`El trámite de ${procedure.name} ha sido finalizado.`);
+          return;
+        }
+
+        procedure.status = updateCycle[currentIndex];
+        procedure.lastUpdated = new Date().toLocaleString();
+        renderProcedures();
+
+        // Alertar en "En Revisión" estado prioritario y "Error"
+        if (procedure.status === 'En Revisión' && procedure.priority === 'high') {
+          notifyUser(`El trámite de ${procedure.name} es crítico y está en revisión.`);
+        }
+        if (procedure.status === 'Error') {
+          notifyUser(`El trámite de ${procedure.name} presenta errores.`);
+        }
+      }, 8000); // Cada 8 segundos para demostración
+    }
+
+    // Mostrar notificación (alertas rápidas)
+    function notifyUser(message) {
+      notification.textContent = message;
+      notification.classList.add('show');
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 6000);
+    }
+
+    // Renderizar tabla de trámites
+    function renderProcedures() {
+      tbody.innerHTML = '';
+      if (procedures.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color:#9ca3af;">No hay trámites registrados.</td></tr>`;
+        return;
+      }
+      procedures.forEach((proc) => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('role', 'row');
+
+        // Ciudadano
+        const tdName = document.createElement('td');
+        tdName.textContent = proc.name;
+        tdName.setAttribute('role', 'cell');
+        tr.appendChild(tdName);
+
+        // Tipo
+        const tdType = document.createElement('td');
+        tdType.textContent = proc.type.charAt(0).toUpperCase() + proc.type.slice(1);
+        tdType.setAttribute('role', 'cell');
+        tr.appendChild(tdType);
+
+        // Detalles
+        const tdDetails = document.createElement('td');
+        tdDetails.textContent = proc.details.length > 50 ? (proc.details.slice(0, 47) + '...') : proc.details;
+        tdDetails.title = proc.details;
+        tdDetails.setAttribute('role', 'cell');
+        tr.appendChild(tdDetails);
+
+        // Prioridad
+        const tdPriority = document.createElement('td');
+        tdPriority.textContent = priorityLevels[proc.priority]?.label ?? 'Desconocida';
+        tdPriority.className = `status ${priorityLevels[proc.priority]?.class ?? ''}`;
+        tdPriority.setAttribute('role', 'cell');
+        tr.appendChild(tdPriority);
+
+        // Estado
+        const tdStatus = document.createElement('td');
+        tdStatus.textContent = proc.status ?? 'Pendiente';
+        tdStatus.className = 'status';
+        tdStatus.setAttribute('role', 'cell');
+        tr.appendChild(tdStatus);
+
+        // Última actualización
+        const tdUpdated = document.createElement('td');
+        tdUpdated.textContent = proc.lastUpdated ?? '-';
+        tdUpdated.setAttribute('role', 'cell');
+        tr.appendChild(tdUpdated);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Validar datos del formulario con reglas simples
+    function validateForm({name, email, type, details}) {
+      if (!name || name.trim().length < 3) return "El nombre debe tener al menos 3 caracteres.";
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Correo electrónico inválido.";
+      if (!type) return "Debe seleccionar un tipo de trámite.";
+      if (!details || details.trim().length < 10) return "La descripción del trámite debe tener al menos 10 caracteres.";
+      return null;
+    }
+
+    // Manejo del envío del formulario
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const name = formData.get('citizen-name').trim();
+      const email = formData.get('citizen-email').trim();
+      const type = formData.get('procedure-type');
+      const details = formData.get('details').trim();
+
+      // Validar datos
+      const error = validateForm({name, email, type, details});
+      if (error) {
+        notifyUser(error);
+        return;
+      }
+
+      // Crear objeto de trámite
+      const newProcedure = {
+        id: crypto.randomUUID(),
+        name,
+        email,
+        type,
+        details,
+        priority: mlPrioritize({name, email, type, details}),
+        status: 'Recibido',
+        lastUpdated: new Date().toLocaleString()
+      };
+
+      if (newProcedure.priority === 'high') {
+        notifyUser(`¡Trámite con prioridad ALTA registrado para ${name}!`);
+      } else {
+        notifyUser(`Trámite registrado para ${name}`);
+      }
+
+      procedures.push(newProcedure);
+      renderProcedures();
+
+      // Reiniciar form
+      form.reset();
+      form.querySelector('select').selectedIndex = 0;
+
+      // Simular actualización de estados
+      simulateStatusUpdate(newProcedure);
+    });
+
+    // Render inicial vacío
+    renderProcedures();
+  })();
+</script>
+</body>
+</html>
+
